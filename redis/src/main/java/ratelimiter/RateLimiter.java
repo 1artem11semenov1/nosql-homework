@@ -3,7 +3,14 @@ package ratelimiter;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
@@ -22,7 +29,16 @@ public class RateLimiter {
   }
 
   public boolean pass() {
-    // TODO: Implementation
+    redis.smembers(label).stream()
+            .map(LocalDateTime::parse)
+            .filter(time -> Duration.between(time, LocalDateTime.now()).toMillis() >= timeWindowSeconds*1000)
+            .map(LocalDateTime::toString)
+            .forEach(timeStr -> redis.srem(label, timeStr));
+
+    if (redis.scard(label) < maxRequestCount) {
+      redis.sadd(label, LocalDateTime.now().toString());
+      return true;
+    }
     return false;
   }
 
@@ -31,7 +47,6 @@ public class RateLimiter {
 
     try (Jedis redis = pool.getResource()) {
       RateLimiter rateLimiter = new RateLimiter(redis, "pr_rate", 1, 1);
-
       BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
       long prev = Instant.now().toEpochMilli();
       long now;
