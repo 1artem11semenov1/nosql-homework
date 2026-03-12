@@ -6,10 +6,6 @@ import java.io.InputStreamReader;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -29,12 +25,14 @@ public class RateLimiter {
   }
 
   public boolean pass() {
+    // проверяет уже лежащие записи и удаляет устаревшие (Duration >= timeWindowSeconds)
     redis.smembers(label).stream()
             .map(LocalDateTime::parse)
             .filter(time -> Duration.between(time, LocalDateTime.now()).toMillis() >= timeWindowSeconds*1000)
             .map(LocalDateTime::toString)
             .forEach(timeStr -> redis.srem(label, timeStr));
 
+    // добавляет новую запись, если не превышено количество запросов в окне
     if (redis.scard(label) < maxRequestCount) {
       redis.sadd(label, LocalDateTime.now().toString());
       return true;
