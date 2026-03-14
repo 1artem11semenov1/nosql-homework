@@ -1,8 +1,17 @@
 -- Решение заданий по ClickHouse
 
 -- 1. Создание таблицы
--- TODO: скопируйте и доработайте CREATE TABLE из schema.sql
-
+CREATE TABLE IF NOT EXISTS server_logs
+(
+  timestamp DateTime('Europe/Moscow'),
+  user_id UInt16,
+  endpoint String,
+  response_time_ms UInt16,
+  status_code UInt16
+)
+ENGINE = MergeTree()
+PRIMARY KEY (endpoint, timestamp)
+ORDER BY (endpoint, timestamp);
 
 -- 2. Загрузка данных из CSV
 -- Подсказка: можно использовать clickhouse-client с параметром --query
@@ -11,12 +20,22 @@
 
 
 -- 3. Запрос: Топ-5 самых медленных endpoint'ов (по среднему времени ответа)
--- TODO: напишите SELECT запрос
-
+SELECT endpoint
+FROM server_logs
+GROUP BY endpoint
+ORDER BY avg(response_time_ms) desc
+LIMIT 5;
 
 -- 4. Запрос: Количество запросов по часам за весь период в логах
--- TODO: напишите SELECT запрос с использованием функции toHour() или formatDateTime()
-
+SELECT
+  toHour(timestamp) AS hour,
+  count(hour) AS requests_count
+FROM server_logs
+GROUP BY hour;
 
 -- 5. Запрос: Процент ошибок (status_code >= 400) для каждого endpoint'а
--- TODO: напишите SELECT запрос с вычислением процента ошибок
+SELECT
+  endpoint,
+  (sum(multiIf(status_code >= 400, 1, 0)) * 100) / count(*) AS err_percent
+FROM server_logs
+GROUP BY endpoint;
