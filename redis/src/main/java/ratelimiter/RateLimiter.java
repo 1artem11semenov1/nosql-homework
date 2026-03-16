@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.Instant;
+import java.util.UUID;
+
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
@@ -22,7 +24,18 @@ public class RateLimiter {
   }
 
   public boolean pass() {
-    // TODO: Implementation
+    // вычисляем borderTime - на timeWindowSeconds раньше currentTime
+    long borderTime = System.currentTimeMillis() - timeWindowSeconds*1000;
+
+    // удаляем всё, что раньше borderTime по score
+    redis.zremrangeByScore(label, 0, borderTime);
+
+    // добавляет новую запись, если не превышено количество запросов в окне
+    if (redis.zcard(label) < maxRequestCount) {
+      // миллисекунды в качестве score, а значение - uuid, для корректного подсчёта при >1000 rps
+      redis.zadd(label, System.currentTimeMillis(), UUID.randomUUID().toString());
+      return true;
+    }
     return false;
   }
 
@@ -31,7 +44,6 @@ public class RateLimiter {
 
     try (Jedis redis = pool.getResource()) {
       RateLimiter rateLimiter = new RateLimiter(redis, "pr_rate", 1, 1);
-
       BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
       long prev = Instant.now().toEpochMilli();
       long now;
