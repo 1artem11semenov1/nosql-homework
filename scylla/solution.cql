@@ -10,8 +10,8 @@ create table user_posts (
     content text,
     created_at timestamp,
     username text,
-    PRIMARY KEY (user_id, created_at)
-) with clustering order by (created_at asc);
+    PRIMARY KEY (user_id, created_at, post_id)
+) with clustering order by (created_at desc);
 
 insert into user_posts (user_id, post_id, content, created_at, username) values(1, 1, 'post1 cont', '2026-03-12 23:48:23', 'user1');
 insert into user_posts (user_id, post_id, content, created_at, username) values(1, 2, 'post2 cont', '2026-03-11 23:48:23', 'user1');
@@ -27,8 +27,8 @@ create table user_posts_with_topics (
     post_id int,
     created_at timestamp,
     topic_id int,
-    PRIMARY KEY (topic_id, created_at, user_id)
-) with clustering order by (created_at asc);
+    PRIMARY KEY (topic_id, created_at, user_id, post_id)
+) with clustering order by (created_at desc);
 
 insert into user_posts_with_topics (user_id, username, post_id, created_at, topic_id) values(1, 'user1', 1, '2026-03-12 23:48:23', 1);
 insert into user_posts_with_topics (user_id, username, post_id, created_at, topic_id) values(2, 'user2', 2, '2026-02-10 23:48:23', 1);
@@ -45,7 +45,7 @@ select post_id, content, created_at from user_posts where user_id = 1;
 select post_id, content, created_at, username from user_posts where user_id = 1 limit 1;
 
 -- Запрос 3
-select post_id, content, created_at from user_posts where user_id = 1 and created_at > '2026-03-11 23:59:59';
+select post_id, content, created_at from user_posts where user_id = 1 and created_at > '2026-03-12';
 
 -- Запрос 4
 select user_id, username, post_id, created_at from user_posts_with_topics where topic_id = 1 and created_at >= '2026-03-12' and created_at < '2026-03-13';

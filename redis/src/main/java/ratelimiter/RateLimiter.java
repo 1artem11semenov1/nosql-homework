@@ -25,16 +25,19 @@ public class RateLimiter {
   }
 
   public boolean pass() {
-    // проверяет уже лежащие записи и удаляет устаревшие (Duration >= timeWindowSeconds)
-    redis.smembers(label).stream()
-            .map(LocalDateTime::parse)
-            .filter(time -> Duration.between(time, LocalDateTime.now()).toMillis() >= timeWindowSeconds*1000)
-            .map(LocalDateTime::toString)
-            .forEach(timeStr -> redis.srem(label, timeStr));
+    // вычисляем borderTime - на timeWindowSeconds раньше now
+    String borderTime = LocalDateTime.now()
+            .minusSeconds(timeWindowSeconds)
+            .toString();
+
+    // для строкового представления LoclDateTime лексикографический порядок совпадает с хронологическим
+    // удаляем всё, что раньше borderTime
+    redis.zremrangeByLex(label, "-", "[" + borderTime);
+
 
     // добавляет новую запись, если не превышено количество запросов в окне
-    if (redis.scard(label) < maxRequestCount) {
-      redis.sadd(label, LocalDateTime.now().toString());
+    if (redis.zcard(label) < maxRequestCount) {
+      redis.zadd(label, 0, LocalDateTime.now().toString());
       return true;
     }
     return false;
